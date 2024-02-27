@@ -36,7 +36,7 @@ int flagForRsWifi,flagForRsPower,flagSendData;
 String id = "minh38384";
 String Path,espID;
 char esp_ID_toChar[100];
-int wifi_status=0;
+int wifi_status=0,countErr;
 const char *pass_to_char,*ssid_to_char;
 
 //Define Firebase Data object

@@ -8,7 +8,6 @@
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(115200);
-  wifiManager.setConfigPortalTimeout(60000);
 
   pinMode(RsBttForWiFi, INPUT);
   pinMode(RsBttForEner, INPUT);
@@ -69,8 +68,8 @@ void setup() {
     Serial.println("ESP: Break Reset Wifi !!!!!!");
   }
   Serial.println();
-  //-----------------------------------------------
-   // infor and connected wifi
+  // -----------------------------------------------
+  // infor and connected wifi
   if (WiFi.SSID() != "" && WiFi.psk() != "") {
     Serial.println("Saved WiFi credentials found:");
     Serial.print("SSID: ");
@@ -80,21 +79,23 @@ void setup() {
     Serial.println("No saved WiFi credentials found");
     wifi_status = 0;
   }
-  pass_to_char=WiFi.psk().c_str();
-  ssid_to_char=WiFi.SSID().c_str();
-  // nếu đã lưu 1 wifi sẽ kết nối với wifi đó 
+  pass_to_char = WiFi.psk().c_str();
+  ssid_to_char = WiFi.SSID().c_str();
+
+  // nếu đã lưu 1 wifi sẽ kết nối với wifi đó
   if (wifi_status == 0) {
     if (wifiManager.autoConnect(esp_ID_toChar, "12345678")) {
       Serial.println("Connect succes:");
-    } 
+    }
   } else {
-    WiFi.begin(ssid_to_char,pass_to_char);
+    WiFi.begin(ssid_to_char, pass_to_char);
     Serial.print("Connecting");
     while (WiFi.status() != WL_CONNECTED) {
       delay(100);
       Serial.print(".");
     }
   }
+  // wifiManager.autoConnect(esp_ID_toChar, "12345678");
   Serial.print("\nConnected with IP: ");
   Serial.println(WiFi.localIP());
 
@@ -111,19 +112,25 @@ void setup() {
   } else {
     Serial.printf("%s\n", config.signer.signupError.message.c_str());
   }
-
-
   /* Assign the callback function for the long running token generation task */
   config.token_status_callback = tokenStatusCallback;  //see addons/TokenHelper.h
   Firebase.begin(&config, &auth);
   Firebase.reconnectWiFi(true);
+  Path = "METTER/" + espID + "/Data";
 }
 
 void loop() {
-  Path = "METTER/" + espID + "/Data";
+
+  if (countErr >= 5) {
+    ESP.reset();
+  }
   if (millis() - sendDataPrevMillis > 3000) {
     // Serial.println("---------------Start Get Data---------------------");
     sendDataPrevMillis = millis();
+    Serial.println(countErr);
+    Serial.print("Counnt Err: ");
+    Serial.println(countErr);
+    Serial.println();
     // ---------get data and pre-process data-----------------------
     volt = getVol();
     ampe = getAmp();
@@ -138,10 +145,12 @@ void loop() {
     json.set("Frequency", Frequency);
     json.set("Energy", Energy);
     showData(volt, ampe, PF, wat, Frequency, Energy);
+    delay(100);
     // Serial.println("End Get Data");
 
     // ----------------------------------------------
     if (Firebase.ready() && signupOK) {
+      delay(100);
       //connect fbdo success
       digitalWrite(ledRS, 1);
       Serial.println("Sign up ok ");
@@ -155,6 +164,7 @@ void loop() {
         Serial.println("SEND FAILED");
         Serial.println("REASON: " + fbdo.errorReason());
         flagSendData = 0;
+        countErr++;
       }
       fbErr(flagSendData);
       //done send data to fbdo >> show result of send data process
@@ -163,11 +173,13 @@ void loop() {
       Serial.println("Sign up fail");
       digitalWrite(ledRS, 0);
       digitalWrite(ledRSPre, 1);
+      countErr++;
       delay(100);
     }
     // Nếu trong quá trình truyền dữ liệu lên fbdo >> lỗi >> vẫn in ra màn hình và chớp led báo lỗi mạng
     // Nếu kết nối lại thì sẽ tắt led báo lỗi mạng
     digitalWrite(ledRSPre, 0);  // tắt báo truyền dữ liệu lỗi
+    Serial.println();
     delay(100);
   }
 }

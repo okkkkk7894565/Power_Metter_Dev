@@ -11,7 +11,6 @@ float getVol() {
   }
 }
 
-
 //GET AMP
 float getAmp() {
   float current = pzem.current();
