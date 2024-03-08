@@ -83,16 +83,19 @@ void setup() {
   ssid_to_char = WiFi.SSID().c_str();
 
   // nếu đã lưu 1 wifi sẽ kết nối với wifi đó
+  int countTimeConWifi = 0;
   if (wifi_status == 0) {
     if (wifiManager.autoConnect(esp_ID_toChar, "12345678")) {
       Serial.println("Connect succes:");
     }
   } else {
     WiFi.begin(ssid_to_char, pass_to_char);
+    countTimeConWifi = 0;
     Serial.print("Connecting");
     while (WiFi.status() != WL_CONNECTED) {
-      delay(100);
+      delay(300);
       Serial.print(".");
+      countTimeConWifi++;
     }
   }
   // wifiManager.autoConnect(esp_ID_toChar, "12345678");
@@ -111,61 +114,88 @@ void setup() {
     signupOK = true;
   } else {
     Serial.printf("%s\n", config.signer.signupError.message.c_str());
+    delay(1000);
+    ESP.reset();
   }
   /* Assign the callback function for the long running token generation task */
   config.token_status_callback = tokenStatusCallback;  //see addons/TokenHelper.h
   Firebase.begin(&config, &auth);
   Firebase.reconnectWiFi(true);
+
   Path = "METTER/" + espID + "/Data";
 }
 
 void loop() {
-
-  if (countErr >= 5) {
+  if (countErr >= 3) {
+    digitalWrite(ledRS, 0);
+    digitalWrite(ledRSPre, 1);
+    delay(3500);
     ESP.reset();
   }
-  if (millis() - sendDataPrevMillis > 3000) {
+
+  if (millis() - sendDataPrevMillis > 4000) {
     // Serial.println("---------------Start Get Data---------------------");
     sendDataPrevMillis = millis();
-    Serial.println(countErr);
     Serial.print("Counnt Err: ");
     Serial.println(countErr);
-    Serial.println();
     // ---------get data and pre-process data-----------------------
     volt = getVol();
     ampe = getAmp();
     PF = getPF();
     wat = getWat();
     Energy = getEnergy();
+    Frequency = getFre();
+    // showData(volt, ampe, PF, wat, Frequency, Energy);
 
     json.set("Vol", volt / 1.0);
     json.set("ampe", ampe);
-    json.set("PF", PF);
+    // json.set("PF", PF);
     json.set("wat", wat);
-    json.set("Frequency", Frequency);
+    // json.set("Frequency", Frequency);
     json.set("Energy", Energy);
-    showData(volt, ampe, PF, wat, Frequency, Energy);
-    delay(100);
+    delay(500);
     // Serial.println("End Get Data");
-
     // ----------------------------------------------
     if (Firebase.ready() && signupOK) {
       delay(100);
       //connect fbdo success
       digitalWrite(ledRS, 1);
       Serial.println("Sign up ok ");
+      sTimeSend = millis();
       if (Firebase.RTDB.setJSON(&fbdo, Path, &json)) {
-        // pre send data after connect success
+        // eTimeSend = millis() - sTimeSend;
+        // Serial.print("Send Time:");
+        // Serial.println(eTimeSend);
+        // if (eTimeSend < 1000 && countErr > 0) {
+        //   Serial.print("Count--");
+        //   countErr--;
+        // }
+        //  send data after connect success
         Serial.println("SEND PASSED");
         Serial.println("PATH: " + fbdo.dataPath());
         Serial.println("TYPE: " + fbdo.dataType());
         flagSendData = 1;
+        //ket thuc gui du lieu
       } else {
         Serial.println("SEND FAILED");
         Serial.println("REASON: " + fbdo.errorReason());
         flagSendData = 0;
         countErr++;
       }
+      eTimeSend = millis();
+      //----------------------------------------tinh thoi gain gui----------------------------------------
+      dur = eTimeSend - sTimeSend;
+      Serial.print("Send Time:");
+      Serial.print(eTimeSend);
+      Serial.print(" - ");
+      Serial.print(sTimeSend);
+      Serial.print(" = ");
+      Serial.println(dur);
+      if (dur < 1000 && countErr > 0) {
+        Serial.println("Count--");
+        countErr--;
+      }
+      //----------------------------------------tinh thoi gain gui----------------------------------------
       fbErr(flagSendData);
       //done send data to fbdo >> show result of send data process
     } else {
@@ -180,7 +210,6 @@ void loop() {
     // Nếu kết nối lại thì sẽ tắt led báo lỗi mạng
     digitalWrite(ledRSPre, 0);  // tắt báo truyền dữ liệu lỗi
     Serial.println();
-    delay(100);
   }
 }
 

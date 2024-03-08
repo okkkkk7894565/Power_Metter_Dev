@@ -28,12 +28,11 @@
 
 // declare variable
 float volt, ampe, PF, wat, Frequency, Energy;
-int firstStatus, ledss;
+// int firstStatus, ledss;
+float sTimeSend, dur, eTimeSend;
 unsigned long sendDataPrevMillis = 0, getButtonData = 0;
-float startTime, dur, starTimeReadBtt;
 bool signupOK = false;
 int flagForRsWifi,flagForRsPower,flagSendData;
-String id = "minh38384";
 String Path,espID;
 char esp_ID_toChar[100];
 int wifi_status=0,countErr;
