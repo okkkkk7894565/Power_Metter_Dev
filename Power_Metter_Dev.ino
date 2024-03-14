@@ -4,7 +4,7 @@
 #include "main.h"
 #include "get_power.h"
 #include "reset_button.h"
-
+///adhgfoagfa
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(115200);
@@ -51,16 +51,14 @@ void setup() {
     Serial.println("ESP: Break Reset Power !!!!!!");
   }
   Serial.println();
+  //-------------- Reset Power----------------------
   //-------------- Reset Wifi----------------------
   Serial.print("RsBttForWiFi:");
   Serial.println(digitalRead(RsBttForWiFi));
   delay(300);
-
   flagForRsWifi = readRsBttForWifi(4000, 1);
-
   Serial.print("flagForRsWifi:");
   Serial.println(flagForRsWifi);
-
   if (flagForRsWifi == 1) {
     digitalWrite(ledRSPre, 0);
     resetWifiByBtt();
@@ -68,8 +66,9 @@ void setup() {
     Serial.println("ESP: Break Reset Wifi !!!!!!");
   }
   Serial.println();
-  // -----------------------------------------------
-  // infor and connected wifi
+  //-------------- Reset Wifi----------------------
+
+  // -----------------------------------------------infor and connected wifi-----------------------------------------------
   if (WiFi.SSID() != "" && WiFi.psk() != "") {
     Serial.println("Saved WiFi credentials found:");
     Serial.print("SSID: ");
@@ -93,17 +92,22 @@ void setup() {
     countTimeConWifi = 0;
     Serial.print("Connecting");
     while (WiFi.status() != WL_CONNECTED) {
-      delay(300);
+      delay(500);
       Serial.print(".");
       countTimeConWifi++;
+      if (countTimeConWifi > 60) {
+        Serial.println("Resarting");
+        delay(2000);
+        ESP.restart();
+      }
     }
   }
-  // wifiManager.autoConnect(esp_ID_toChar, "12345678");
   Serial.print("\nConnected with IP: ");
   Serial.println(WiFi.localIP());
+  // -----------------------------------------------infor and connected wifi-----------------------------------------------
 
-  //-----------------------------------------------
-  // /* Assign the api key (required) */
+  // -----------------------------------------------FBDO config -----------------------------------------------
+  /* Assign the api key (required) */
   config.api_key = API_KEY;
   /* Assign the RTDB URL (required) */
   config.database_url = DATABASE_URL;
@@ -121,10 +125,10 @@ void setup() {
   config.token_status_callback = tokenStatusCallback;  //see addons/TokenHelper.h
   Firebase.begin(&config, &auth);
   Firebase.reconnectWiFi(true);
-
   Path = "METTER/" + espID + "/Data";
+  // -----------------------------------------------FBDO config -----------------------------------------------
+  Serial.println("Starting");
 }
-
 void loop() {
   if (countErr >= 3) {
     digitalWrite(ledRS, 0);
@@ -132,7 +136,6 @@ void loop() {
     delay(3500);
     ESP.reset();
   }
-
   if (millis() - sendDataPrevMillis > 4000) {
     // Serial.println("---------------Start Get Data---------------------");
     sendDataPrevMillis = millis();
@@ -145,7 +148,7 @@ void loop() {
     wat = getWat();
     Energy = getEnergy();
     Frequency = getFre();
-    // showData(volt, ampe, PF, wat, Frequency, Energy);
+    showData(volt, ampe, PF, wat, Frequency, Energy);
 
     json.set("Vol", volt / 1.0);
     json.set("ampe", ampe);
@@ -155,7 +158,7 @@ void loop() {
     json.set("Energy", Energy);
     delay(500);
     // Serial.println("End Get Data");
-    // ----------------------------------------------
+    // ---------get data and pre-process data-------------------------
     if (Firebase.ready() && signupOK) {
       delay(100);
       //connect fbdo success
@@ -183,7 +186,7 @@ void loop() {
         countErr++;
       }
       eTimeSend = millis();
-      //----------------------------------------tinh thoi gain gui----------------------------------------
+      //----------------------------------------thời gian setData lên fb----------------------------------------
       dur = eTimeSend - sTimeSend;
       Serial.print("Send Time:");
       Serial.print(eTimeSend);
@@ -195,20 +198,18 @@ void loop() {
         Serial.println("Count--");
         countErr--;
       }
-      //----------------------------------------tinh thoi gain gui----------------------------------------
+      //----------------------------------------thời gian setData lên fb----------------------------------------
       fbErr(flagSendData);
       //done send data to fbdo >> show result of send data process
     } else {
-      //connect fbdo fail >>  on ledRSPre , off ledRS
+      //  Truyền dữ liệu lên fbdo lỗi (lỗi mạng) >> vẫn in ra màn hình và chớp led báo lỗi mạng
       Serial.println("Sign up fail");
+      countErr = 0;
       digitalWrite(ledRS, 0);
       digitalWrite(ledRSPre, 1);
-      countErr++;
       delay(100);
     }
-    // Nếu trong quá trình truyền dữ liệu lên fbdo >> lỗi >> vẫn in ra màn hình và chớp led báo lỗi mạng
-    // Nếu kết nối lại thì sẽ tắt led báo lỗi mạng
-    digitalWrite(ledRSPre, 0);  // tắt báo truyền dữ liệu lỗi
+    digitalWrite(ledRSPre, 0);  // tắt báo led lỗi mạng sau khi hiển thị
     Serial.println();
   }
 }
@@ -254,7 +255,7 @@ void resetEneryByBtt() {
       count++;
     }
     Serial.println("PZEM:Reset Power Succesfull !!!");
-  } else {
+  } else {    
     count = 0;
     while (count <= 2) {
       digitalWrite(ledRS, 1);
