@@ -28,15 +28,16 @@
 
 // declare variable
 float volt, ampe, PF, wat, Frequency, Energy;
-// int firstStatus, ledss;
 float sTimeSend, dur, eTimeSend;
 unsigned long sendDataPrevMillis = 0, getButtonData = 0;
 bool signupOK = false;
-int flagForRsWifi,flagForRsPower,flagSendData;
-String Path,espID;
+unsigned int flagForRsWifi,flagForRsPower,flagSendData,wifiStatusFlag,checkWifiFlag;
+String Path,espID,savedSsid;
 char esp_ID_toChar[100];
-int wifi_status=0,countErr;
+unsigned int wifi_status=0,countErr,countTimeConWifi;
 const char *pass_to_char,*ssid_to_char;
+
+
 
 //Define Firebase Data object
 FirebaseData fbdo;
