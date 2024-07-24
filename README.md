@@ -1,4 +1,4 @@
-//link:E:\git_clone_folder\Power_Metter_Dev
+
 # espUART_TEST_20231226_resetPower
 Hướng dẫn dùng nút reset power:
 1)Nhấn giữ nút reset power
@@ -12,5 +12,4 @@ Tín hiệu đèn
 2, Đèn xanh lá cây sáng liên tục kết nối mạng không ổn định >> quá trình truyền bị ngẽn mạng >> mạng kém
 3, Đèn xanh lục nhấp nháy, kết nối mạng không thành công, không thể ghi dữ lên Fbdo, nhưng vẫn hiển thị ra màn hình (xuất dữ liệu offline)
 4, Đèn xanh lục sáng rồi đèn xanh lục và đèn xanh lá nhấp nháy xen kẽ, kết nối mạng thành công nhưng có lỗi trong quá trình ghi lên Fbdo# Power_Metter_Dev
-# Power_Metter_Dev
-# Power_Metter_Dev
+
