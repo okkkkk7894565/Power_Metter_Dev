@@ -1,3 +1,4 @@
+//link:E:\git_clone_folder\Power_Metter_Dev
 # espUART_TEST_20231226_resetPower
 Hướng dẫn dùng nút reset power:
 1)Nhấn giữ nút reset power

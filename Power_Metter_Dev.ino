@@ -1,10 +1,12 @@
-// COM10 in lap COM5 in PC
-/////update reset 26/12/2023 >> in clone git >> can update
 #include <Arduino.h>
 #include "main.h"
 #include "get_power.h"
 #include "reset_button.h"
-//14/3
+#include "sim.h"
+
+bool wat_err;
+int count_mss;
+//11/7
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(115200);
@@ -19,6 +21,7 @@ void setup() {
   Serial.println("ESP:Welcome!!!");
   Serial.println("ESP:Receiver data");
   Serial.println();
+  digitalWrite(D2, 1);
 
   //ESP.getChipId() returns the ESP8266 chip ID as a 32-bit integer.
   espID = "ESP_" + (String)ESP.getChipId() + "_" + (String)ESP.getFlashChipId();
@@ -45,7 +48,7 @@ void setup() {
   delay(100);
 
   if (flagForRsPower == 1) {
-    digitalWrite(ledRSPre, 0);
+    // digitalWrite(ledRSPre, 0);
     resetEneryByBtt();
   } else {
     Serial.println("ESP: Break Reset Power !!!!!!");
@@ -61,13 +64,20 @@ void setup() {
   Serial.print("flagForRsWifi:");
   Serial.println(flagForRsWifi);
   if (flagForRsWifi == 1) {
-    digitalWrite(ledRSPre, 0);
+    // digitalWrite(ledRSPre, 0);
     resetWifiByBtt();
   } else {
     Serial.println("ESP: Break Reset Wifi !!!!!!");
   }
   Serial.println();
   //-------------- Reset Wifi----------------------
+
+  //init sim
+  sim800.begin(115200);
+  delay(1000);  // Đợi module khởi động
+  sendATCommand("AT");
+  //init sim
+
 
   // -----------------------------------------------infor and connected wifi-----------------------------------------------
   if (WiFi.SSID() != "" && WiFi.psk() != "") {
@@ -97,7 +107,7 @@ void setup() {
     Serial.print("Connecting");
     while (WiFi.status() != WL_CONNECTED) {
       delay(100);
-      Serial.println(countTimeConWifi);
+      // Serial.println(countTimeConWifi);
       countTimeConWifi++;
       if (countTimeConWifi >= 60) {
         wifiStatusFlag = 0;
@@ -129,22 +139,27 @@ void setup() {
     config.token_status_callback = tokenStatusCallback;  //see addons/TokenHelper.h
     Firebase.begin(&config, &auth);
     Firebase.reconnectWiFi(true);
-    Path = "METTER/" + espID + "/Data";
+    // Path = "Systems/" + espID + "/Data";
+    Path = "Systems/ESP_3470400_1458270/Data";
+
     Serial.println("Starting with Wifi");
     // -----------------------------------------------FBDO config -----------------------------------------------
   } else {
     Serial.println("Starting NO Wifi");
   }
   checkWifiFlag = 0;
+  ///tesst
+  count_mss = 0;
 }
 void loop() {
+  // digitalWrite(ledRSPre, 1);
+
   if (countErr >= 3) {
     digitalWrite(ledRS, 0);
-    digitalWrite(ledRSPre, 1);
     delay(3500);
     ESP.reset();
   }
-  if (millis() - sendDataPrevMillis > 3000) {
+  if (millis() - sendDataPrevMillis > 5000) {
     sendDataPrevMillis = millis();
     // Serial.println("22222222");
     volt = getVol();
@@ -153,6 +168,7 @@ void loop() {
     wat = getWat();
     Energy = getEnergy();
     Frequency = getFre();
+    // wat_err_alert((int)wat);
     showData(volt, ampe, PF, wat, Frequency, Energy);
 
     switch (wifiStatusFlag) {
@@ -175,34 +191,45 @@ void loop() {
 
         json.set("Vol", volt / 1.0);
         json.set("ampe", ampe);
-        // json.set("PF", PF);
+        json.set("PF", PF);
         json.set("wat", wat);
-        // json.set("Frequency", Frequency);
+        json.set("Frequency", Frequency);
         json.set("Energy", Energy);
+        json.set("wat_max", wat_max-8);
         delay(500);
         // Serial.println("End Get Data");
         // ---------get data and pre-process data-------------------------
         if (Firebase.ready() && signupOK) {
           delay(100);
-          //connect fbdo success
           digitalWrite(ledRS, 1);
-          Serial.println("Sign up ok ");
+          Serial.println("Sign up ok");
           sTimeSend = millis();
-          if (Firebase.RTDB.setJSON(&fbdo, Path, &json)) {
-            //  send data after connect success
-            Serial.println("SEND PASSED");
-            Serial.println("PATH: " + fbdo.dataPath());
-            Serial.println("TYPE: " + fbdo.dataType());
-            flagSendData = 1;
-            //ket thuc gui du lieu
-          } else {
+          sendStartTime = sTimeSend;  // Lưu thời gian bắt đầu gửi
+          bool sendSuccess = false;   // Biến để theo dõi trạng thái gửi
+          while (millis() - sendStartTime < sendTimeout) {
+            if (Firebase.RTDB.setJSON(&fbdo, Path, &json)) {
+              sendSuccess = true;
+              Serial.println("SEND PASSED");
+              Serial.println("PATH: " + fbdo.dataPath());
+              Serial.println("TYPE: " + fbdo.dataType());
+              flagSendData = 1;
+              break;
+            } else {
+              // Nếu hàm trả về thất bại ngay lập tức, ta có thể thoát khỏi vòng lặp ngay
+              if (fbdo.httpCode() != FIREBASE_ERROR_TCP_ERROR_CONNECTION_REFUSED) {
+                break;
+              }
+            }
+          }
+
+          if (!sendSuccess) {
             Serial.println("SEND FAILED");
             Serial.println("REASON: " + fbdo.errorReason());
             flagSendData = 0;
             countErr++;
           }
+
           eTimeSend = millis();
-          //----------------------------------------thời gian setData lên fb----------------------------------------
           dur = eTimeSend - sTimeSend;
           Serial.print("Send Time:");
           Serial.print(eTimeSend);
@@ -214,23 +241,23 @@ void loop() {
             Serial.println("Count--");
             countErr--;
           }
-          //----------------------------------------thời gian setData lên fb----------------------------------------
           fbErr(flagSendData);
-          //done send data to fbdo >> show result of send data process
+          // Kiểm tra nếu thời gian gửi vượt quá 10 giây
+          if (millis() - sendStartTime > sendTimeout) {
+            Serial.println("Send timeout, restarting loop.");
+          }
+
         } else {
-          //  Truyền dữ liệu lên fbdo lỗi (lỗi mạng) >> vẫn in ra màn hình và chớp led báo lỗi mạng
           Serial.println("Sign up fail");
           countErr = 0;
           digitalWrite(ledRS, 0);
-          digitalWrite(ledRSPre, 1);
           delay(100);
         }
-        digitalWrite(ledRSPre, 0);  // tắt báo led lỗi mạng sau khi hiển thị
         Serial.println();
         break;
     }
+    wat_err_alert((int)wat);
   }
-  Serial.println("Done");
 }
 
 
@@ -245,9 +272,7 @@ void fbErr(int getFlag) {
     digitalWrite(ledRS, 0);
     delay(200);
     for (int i = 0; i < 3; i++) {
-      digitalWrite(ledRSPre, 1);
       delay(100);
-      digitalWrite(ledRSPre, 0);
       digitalWrite(ledRS, 1);
       delay(100);
       digitalWrite(ledRS, 0);
@@ -255,6 +280,8 @@ void fbErr(int getFlag) {
   }
 }
 //----------------------------------- Reset Function -------------------------------------
+
+
 void resetEneryByBtt() {
   int count = 0;
   while (count <= 5) {
@@ -340,3 +367,26 @@ bool isSavedNetworkFound(String ssid) {
   }
 }
 //----------------------------------- isSavedNetworkFound ----------------------------------
+
+
+//----------------------------------- Alert Function -------------------------------------
+void wat_err_alert(int current_wat) {
+  if (current_wat > wat_max - 8) {
+    String send_ms = "Near Overload:" + (String)count_mss + ":" + (String)current_wat + "W";
+    sendSMS("0387015635", send_ms);
+    // makeCall("0387015635");
+    // makeCall("0862657918");
+    Serial.println("_______________________SIM:Alert Done(SMS)________________________________");
+    Serial.println();
+    count_mss++;
+    if (current_wat > wat_max) {
+      Serial.println("-----------------------------Auto Turn off-----------------------------");
+      Serial.println();
+      digitalWrite(ledRSPre, 0);
+    }
+  } else {
+    Serial.println("SIM:Nothing to be done");
+    Serial.println();
+  }
+}
+//----------------------------------- Alert Function -------------------------------------
