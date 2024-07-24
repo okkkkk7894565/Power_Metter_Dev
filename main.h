@@ -5,6 +5,7 @@
 #elif defined(ESP8266)
 #include <ESP8266WiFi.h>
 #endif
+
 #include <Firebase_ESP_Client.h>
 //Provide the token generation process info.
 #include "addons/TokenHelper.h"
@@ -21,21 +22,23 @@
 //define pin using
 #define RsBttForEner D0
 #define RsBttForWiFi D1
-#define ledRSPre D3
-#define ledRS D2
+
+#define ledRSPre D2
+#define ledRS D3
 #define LED_PIN1 D8
 
 
 // declare variable
 float volt, ampe, PF, wat, Frequency, Energy;
 float sTimeSend, dur, eTimeSend;
-unsigned long sendDataPrevMillis = 0, getButtonData = 0;
+unsigned long sendDataPrevMillis = 0, getButtonData = 0,sendStartTime;
 bool signupOK = false;
 unsigned int flagForRsWifi,flagForRsPower,flagSendData,wifiStatusFlag,checkWifiFlag;
 String Path,espID,savedSsid;
 char esp_ID_toChar[100];
-unsigned int wifi_status=0,countErr,countTimeConWifi;
+unsigned int wifi_status=0,countErr,countTimeConWifi,wat_max=50;
 const char *pass_to_char,*ssid_to_char;
+const unsigned long sendTimeout = 5000;  // 10 seconds
 
 
 
